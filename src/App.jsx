@@ -12,11 +12,11 @@ export default function App() {
   useEffect(() => {
     const loadPolls = async () => {
       try {
-        const keys = await window.storage.list('poll:');
+        const keys = await window.storage.list('poll:', true);
         if (keys && keys.keys) {
           const loadedPolls = [];
           for (const key of keys.keys) {
-            const result = await window.storage.get(key);
+            const result = await window.storage.get(key, true);
             if (result) {
               loadedPolls.push(JSON.parse(result.value));
             }
@@ -97,11 +97,12 @@ export default function App() {
       totalVotes: currentPoll.totalVotes + 1
     };
 
-    // Save updated poll
+    // Save updated poll with shared=true so everyone can see it
     try {
       await window.storage.set(`poll:${updatedPoll.id}`, JSON.stringify(updatedPoll), true);
+      console.log('Vote saved successfully');
     } catch (error) {
-      console.log('Storage not available');
+      console.log('Storage error:', error);
     }
 
     setCurrentPoll(updatedPoll);
@@ -127,16 +128,35 @@ export default function App() {
   useEffect(() => {
     const checkUrlForPoll = async () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const pollId = urlParams.get('poll');
-      if (pollId) {
-        // Wait a moment for storage to load
+      const pollIdStr = urlParams.get('poll');
+      if (pollIdStr) {
+        const pollId = parseInt(pollIdStr);
+        
+        // Try to load from shared storage first
+        try {
+          const result = await window.storage.get(`poll:${pollId}`, true);
+          if (result && result.value) {
+            const poll = JSON.parse(result.value);
+            setCurrentPoll(poll);
+            setCurrentView('vote');
+            setHasVoted(false);
+            return;
+          }
+        } catch (error) {
+          console.log('Could not load from storage:', error);
+        }
+        
+        // If not found, show error after a delay
         setTimeout(() => {
-          viewPoll(parseInt(pollId));
-        }, 500);
+          if (!currentPoll) {
+            alert('Poll not found. It may have been deleted or the link is incorrect.');
+            setCurrentView('home');
+          }
+        }, 1000);
       }
     };
     checkUrlForPoll();
-  }, [polls]);
+  }, []);
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
