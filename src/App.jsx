@@ -7,23 +7,39 @@ export default function App() {
   const [currentView, setCurrentView] = useState('home');
   const [currentPoll, setCurrentPoll] = useState(null);
   const [hasVoted, setHasVoted] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // Load polls from localStorage
-  useEffect(() => {
-    const savedPolls = localStorage.getItem('pollgenius_polls');
-    if (savedPolls) {
-      setPolls(JSON.parse(savedPolls));
+  // Load all polls from shared storage
+  const loadAllPolls = async () => {
+    setLoading(true);
+    try {
+      const result = await window.storage.list('poll:', true);
+      if (result && result.keys && result.keys.length > 0) {
+        const loadedPolls = [];
+        for (const key of result.keys) {
+          try {
+            const pollResult = await window.storage.get(key, true);
+            if (pollResult && pollResult.value) {
+              loadedPolls.push(JSON.parse(pollResult.value));
+            }
+          } catch (e) {
+            console.log('Error loading poll:', e);
+          }
+        }
+        setPolls(loadedPolls.sort((a, b) => b.id - a.id));
+      }
+    } catch (error) {
+      console.log('Storage error:', error);
     }
+    setLoading(false);
+  };
+
+  // Load polls on mount
+  useEffect(() => {
+    loadAllPolls();
   }, []);
 
-  // Save polls to localStorage whenever they change
-  useEffect(() => {
-    if (polls.length > 0) {
-      localStorage.setItem('pollgenius_polls', JSON.stringify(polls));
-    }
-  }, [polls]);
-
-  const createPoll = () => {
+  const createPoll = async () => {
     if (!pollTitle.trim() || pollOptions.filter(o => o.trim()).length < 2) {
       alert('Please add a title and at least 2 options');
       return;
@@ -37,21 +53,43 @@ export default function App() {
       createdAt: new Date().toISOString(),
     };
 
-    setPolls([newPoll, ...polls]);
-    setPollTitle('');
-    setPollOptions(['', '']);
-    setCurrentPoll(newPoll);
-    setCurrentView('share');
+    // Save to shared storage
+    try {
+      await window.storage.set(`poll:${newPoll.id}`, JSON.stringify(newPoll), true);
+      setPolls([newPoll, ...polls]);
+      setPollTitle('');
+      setPollOptions(['', '']);
+      setCurrentPoll(newPoll);
+      setCurrentView('share');
+    } catch (error) {
+      alert('Error creating poll. Please try again.');
+      console.error(error);
+    }
   };
 
-  const viewPoll = (poll) => {
-    setCurrentPoll(poll);
-    setCurrentView('vote');
-    setHasVoted(false);
+  const loadPoll = async (pollId) => {
+    setLoading(true);
+    try {
+      const result = await window.storage.get(`poll:${pollId}`, true);
+      if (result && result.value) {
+        const poll = JSON.parse(result.value);
+        setCurrentPoll(poll);
+        setCurrentView('vote');
+        setHasVoted(false);
+      } else {
+        alert('Poll not found');
+        setCurrentView('home');
+      }
+    } catch (error) {
+      alert('Error loading poll');
+      console.error(error);
+      setCurrentView('home');
+    }
+    setLoading(false);
   };
 
-  const vote = (optionIndex) => {
-    if (hasVoted) return;
+  const vote = async (optionIndex) => {
+    if (hasVoted || !currentPoll) return;
 
     const updatedPoll = {
       ...currentPoll,
@@ -61,9 +99,16 @@ export default function App() {
       totalVotes: currentPoll.totalVotes + 1
     };
 
-    setCurrentPoll(updatedPoll);
-    setPolls(polls.map(p => p.id === updatedPoll.id ? updatedPoll : p));
-    setHasVoted(true);
+    try {
+      // Save updated poll to shared storage
+      await window.storage.set(`poll:${updatedPoll.id}`, JSON.stringify(updatedPoll), true);
+      setCurrentPoll(updatedPoll);
+      setPolls(polls.map(p => p.id === updatedPoll.id ? updatedPoll : p));
+      setHasVoted(true);
+    } catch (error) {
+      alert('Error recording vote. Please try again.');
+      console.error(error);
+    }
   };
 
   const addOption = () => setPollOptions([...pollOptions, '']);
@@ -76,12 +121,7 @@ export default function App() {
 
   const getShareableLink = () => {
     if (!currentPoll) return '';
-    // Encode poll data in URL
-    const pollData = btoa(JSON.stringify({
-      t: currentPoll.title,
-      o: currentPoll.options.map(opt => opt.text)
-    }));
-    return `${window.location.origin}?p=${pollData}`;
+    return `${window.location.origin}?poll=${currentPoll.id}`;
   };
 
   const copyShareLink = () => {
@@ -90,27 +130,14 @@ export default function App() {
     alert('Link copied! Share it with anyone to collect votes.');
   };
 
-  // Check URL for poll data on load
+  // Check URL for poll ID on load
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const pollData = urlParams.get('p');
+    const pollIdStr = urlParams.get('poll');
     
-    if (pollData) {
-      try {
-        const decoded = JSON.parse(atob(pollData));
-        const poll = {
-          id: Date.now(),
-          title: decoded.t,
-          options: decoded.o.map(text => ({ text, votes: 0 })),
-          totalVotes: 0,
-          createdAt: new Date().toISOString()
-        };
-        setCurrentPoll(poll);
-        setCurrentView('vote');
-      } catch (error) {
-        console.error('Invalid poll link');
-        setCurrentView('home');
-      }
+    if (pollIdStr) {
+      const pollId = parseInt(pollIdStr);
+      loadPoll(pollId);
     }
   }, []);
 
@@ -133,6 +160,7 @@ export default function App() {
             onClick={() => {
               setCurrentView('home');
               window.history.pushState({}, '', '/');
+              loadAllPolls();
             }}
             style={{
               background: 'none',
@@ -172,7 +200,13 @@ export default function App() {
 
       {/* Main Content */}
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
-        {currentView === 'home' && (
+        {loading && (
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            <p>Loading...</p>
+          </div>
+        )}
+
+        {!loading && currentView === 'home' && (
           <div>
             {/* Hero Section */}
             <div style={{
@@ -208,9 +242,24 @@ export default function App() {
 
             {/* Polls List */}
             <div style={{ backgroundColor: 'white', borderRadius: '0.5rem', padding: '2rem' }}>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '1rem' }}>
-                Your Recent Polls
-              </h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: '600', margin: 0 }}>
+                  Recent Polls
+                </h3>
+                <button
+                  onClick={loadAllPolls}
+                  style={{
+                    backgroundColor: '#f3f4f6',
+                    border: '1px solid #d1d5db',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '0.5rem',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  🔄 Refresh
+                </button>
+              </div>
               
               {polls.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '3rem', color: '#6b7280' }}>
@@ -238,7 +287,7 @@ export default function App() {
                         </p>
                       </div>
                       <button
-                        onClick={() => viewPoll(poll)}
+                        onClick={() => loadPoll(poll.id)}
                         style={{
                           backgroundColor: '#2563eb',
                           color: 'white',
@@ -249,7 +298,7 @@ export default function App() {
                           fontWeight: '500'
                         }}
                       >
-                        View Results
+                        View
                       </button>
                     </div>
                   ))}
@@ -421,7 +470,7 @@ export default function App() {
               </button>
 
               <button
-                onClick={() => viewPoll(currentPoll)}
+                onClick={() => loadPoll(currentPoll.id)}
                 style={{
                   backgroundColor: 'white',
                   color: '#2563eb',
@@ -439,7 +488,7 @@ export default function App() {
           </div>
         )}
 
-        {currentView === 'vote' && currentPoll && (
+        {currentView === 'vote' && currentPoll && !loading && (
           <div style={{ maxWidth: '700px', margin: '0 auto' }}>
             <div style={{ backgroundColor: 'white', borderRadius: '0.5rem', padding: '2rem' }}>
               <h2 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '2rem' }}>
@@ -496,7 +545,7 @@ export default function App() {
                   </div>
 
                   <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>
-                    Results ({currentPoll.totalVotes} votes)
+                    Results ({currentPoll.totalVotes} total votes)
                   </h3>
 
                   {currentPoll.options.map((option, index) => {
@@ -528,11 +577,22 @@ export default function App() {
                     );
                   })}
 
-                  <div style={{ marginTop: '2rem', padding: '1rem', backgroundColor: '#fef3c7', borderRadius: '0.5rem', border: '1px solid #fbbf24' }}>
-                    <p style={{ fontSize: '0.875rem', color: '#92400e', margin: 0 }}>
-                      <strong>Note:</strong> Votes are only stored locally on this device. To collect real votes, you need to add a backend database (which requires more setup).
-                    </p>
-                  </div>
+                  <button
+                    onClick={copyShareLink}
+                    style={{
+                      marginTop: '2rem',
+                      backgroundColor: '#2563eb',
+                      color: 'white',
+                      padding: '0.75rem 2rem',
+                      borderRadius: '0.5rem',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                      width: '100%'
+                    }}
+                  >
+                    📋 Copy Share Link
+                  </button>
                 </div>
               )}
             </div>
