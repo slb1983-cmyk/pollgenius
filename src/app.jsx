@@ -1,140 +1,291 @@
-<div className="flex items-center gap-4">
-          <button
-            onClick={() => setCurrentView('blog')}
-            className="flex items-center gap-2 text-gray-700 hover:text-blue-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition"
-          >
-            <BookOpen className="w-4 h-4" />
-            Blog
-          </button>
-          <button
-            onClick={() => setCurrentView('article-generator')}
-            className="flex items-center gap-2 text-gray-700 hover:text-purple-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition"
-          >
-            <Sparkles className="w-4 h-4" />
-            Generate Article
-          </button>
+import React, { useState } from 'react';
+
+export default function App() {
+  const [polls, setPolls] = useState([]);
+  const [pollTitle, setPollTitle] = useState('');
+  const [pollOptions, setPollOptions] = useState(['', '']);
+  const [currentView, setCurrentView] = useState('home');
+
+  const createPoll = () => {
+    if (!pollTitle.trim() || pollOptions.filter(o => o.trim()).length < 2) {
+      alert('Please add a title and at least 2 options');
+      return;
+    }
+
+    const newPoll = {
+      id: Date.now(),
+      title: pollTitle,
+      options: pollOptions.filter(o => o.trim()).map(opt => ({ text: opt, votes: 0 })),
+      totalVotes: 0,
+      createdAt: new Date().toISOString(),
+    };
+
+    setPolls([newPoll, ...polls]);
+    setPollTitle('');
+    setPollOptions(['', '']);
+    setCurrentView('home');
+  };
+
+  const addOption = () => setPollOptions([...pollOptions, '']);
+  
+  const updateOption = (index, value) => {
+    const newOptions = [...pollOptions];
+    newOptions[index] = value;
+    setPollOptions(newOptions);
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
+      {/* Header */}
+      <nav style={{ 
+        backgroundColor: 'white', 
+        borderBottom: '1px solid #e5e7eb',
+        padding: '1rem 2rem'
+      }}>
+        <div style={{ 
+          maxWidth: '1200px', 
+          margin: '0 auto',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <h1 style={{ 
+            fontSize: '1.5rem', 
+            fontWeight: 'bold',
+            background: 'linear-gradient(to right, #2563eb, #9333ea)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent'
+          }}>
+            PollGenius
+          </h1>
+          
           <button
             onClick={() => setCurrentView('create')}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+            style={{
+              backgroundColor: '#2563eb',
+              color: 'white',
+              padding: '0.5rem 1rem',
+              borderRadius: '0.5rem',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: '600'
+            }}
           >
-            <Plus className="w-4 h-4" />
-            New Poll
+            Create Poll
           </button>
         </div>
-      </div>
-    </div>
-  </nav>
+      </nav>
 
-  <main className="py-8 px-4 sm:px-6 lg:px-8">
-    {currentView === 'home' && renderHome()}
-    {currentView === 'create' && renderCreatePoll()}
-    {currentView === 'blog' && renderBlog()}
-    {currentView === 'blog-post' && renderBlogPost()}
-    {currentView === 'article-generator' && renderArticleGenerator()}
-  </main>
-
-  {/* AI Support Chatbot */}
-  {!chatOpen && (
-    <button
-      onClick={() => setChatOpen(true)}
-      className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition z-50"
-    >
-      <div className="flex items-center gap-2">
-        <Sparkles className="w-6 h-6" />
-        <span className="font-semibold">Need Help?</span>
-      </div>
-    </button>
-  )}
-
-  {chatOpen && (
-    <div className="fixed bottom-6 right-6 w-96 bg-white rounded-lg shadow-2xl z-50 flex flex-col" style={{height: '500px'}}>
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-t-lg flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5" />
-          <h3 className="font-semibold">AI Support</h3>
-        </div>
-        <button onClick={() => setChatOpen(false)} className="text-white hover:text-gray-200">
-          ✕
-        </button>
-      </div>
-      
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {chatMessages.map((msg, idx) => (
-          <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[80%] p-3 rounded-lg ${
-              msg.role === 'user' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-100 text-gray-900'
-            }`}>
-              {msg.content}
+      {/* Main Content */}
+      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
+        {currentView === 'home' && (
+          <div>
+            {/* Hero Section */}
+            <div style={{
+              background: 'linear-gradient(to right, #2563eb, #9333ea)',
+              color: 'white',
+              padding: '4rem 2rem',
+              borderRadius: '1rem',
+              textAlign: 'center',
+              marginBottom: '2rem'
+            }}>
+              <h2 style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '1rem' }}>
+                Create Beautiful Polls in Seconds
+              </h2>
+              <p style={{ fontSize: '1.25rem', marginBottom: '2rem', opacity: 0.9 }}>
+                Free, fast, and easy to use. No signup required.
+              </p>
+              <button
+                onClick={() => setCurrentView('create')}
+                style={{
+                  backgroundColor: 'white',
+                  color: '#2563eb',
+                  padding: '1rem 2rem',
+                  borderRadius: '0.5rem',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '1.125rem'
+                }}
+              >
+                Create Free Poll
+              </button>
             </div>
-          </div>
-        ))}
-        {isChatLoading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-100 text-gray-900 p-3 rounded-lg">
-              Typing...
+
+            {/* Polls List */}
+            <div style={{ backgroundColor: 'white', borderRadius: '0.5rem', padding: '2rem' }}>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '1rem' }}>
+                Your Polls
+              </h3>
+              
+              {polls.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '3rem', color: '#6b7280' }}>
+                  <p>No polls yet. Create your first poll!</p>
+                </div>
+              ) : (
+                <div>
+                  {polls.map(poll => (
+                    <div 
+                      key={poll.id}
+                      style={{
+                        padding: '1.5rem',
+                        borderBottom: '1px solid #e5e7eb',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <h4 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>
+                        {poll.title}
+                      </h4>
+                      <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+                        {poll.totalVotes} votes • Created {new Date(poll.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
-      </div>
-      
-      <div className="p-4 border-t">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleChatSubmit()}
-            placeholder="Ask a question..."
-            className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-          <button
-            onClick={handleChatSubmit}
-            disabled={isChatLoading || !chatInput.trim()}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition"
-          >
-            Send
-          </button>
-        </div>
-      </div>
-    </div>
-  )}
 
-  <footer className="bg-white border-t mt-16">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-        <div>
-          <h3 className="font-semibold mb-3">Product</h3>
-          <ul className="space-y-2 text-sm text-gray-600">
-            <li><button onClick={() => setCurrentView('create')} className="hover:text-blue-600">Create Poll</button></li>
-            <li><button onClick={() => setCurrentView('home')} className="hover:text-blue-600">Features</button></li>
-          </ul>
+        {currentView === 'create' && (
+          <div style={{ maxWidth: '700px', margin: '0 auto' }}>
+            <div style={{ backgroundColor: 'white', borderRadius: '0.5rem', padding: '2rem' }}>
+              <h2 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '2rem' }}>
+                Create New Poll
+              </h2>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ 
+                  display: 'block', 
+                  fontSize: '0.875rem', 
+                  fontWeight: '500',
+                  marginBottom: '0.5rem'
+                }}>
+                  Poll Question
+                </label>
+                <input
+                  type="text"
+                  value={pollTitle}
+                  onChange={(e) => setPollTitle(e.target.value)}
+                  placeholder="What's your question?"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.5rem',
+                    fontSize: '1rem'
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ 
+                  display: 'block', 
+                  fontSize: '0.875rem', 
+                  fontWeight: '500',
+                  marginBottom: '0.5rem'
+                }}>
+                  Answer Options
+                </label>
+                
+                {pollOptions.map((option, index) => (
+                  <div key={index} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <input
+                      type="text"
+                      value={option}
+                      onChange={(e) => updateOption(index, e.target.value)}
+                      placeholder={`Option ${index + 1}`}
+                      style={{
+                        flex: 1,
+                        padding: '0.5rem',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '0.5rem'
+                      }}
+                    />
+                    {pollOptions.length > 2 && (
+                      <button
+                        onClick={() => setPollOptions(pollOptions.filter((_, i) => i !== index))}
+                        style={{
+                          padding: '0.5rem 1rem',
+                          color: '#dc2626',
+                          backgroundColor: '#fee2e2',
+                          border: 'none',
+                          borderRadius: '0.5rem',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                ))}
+                
+                <button
+                  onClick={addOption}
+                  style={{
+                    marginTop: '0.5rem',
+                    color: '#2563eb',
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: '500'
+                  }}
+                >
+                  + Add Option
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', paddingTop: '1rem' }}>
+                <button
+                  onClick={createPoll}
+                  style={{
+                    flex: 1,
+                    backgroundColor: '#2563eb',
+                    color: 'white',
+                    padding: '0.75rem',
+                    borderRadius: '0.5rem',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: '600'
+                  }}
+                >
+                  Create Poll
+                </button>
+                <button
+                  onClick={() => setCurrentView('home')}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.5rem',
+                    backgroundColor: 'white',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer style={{ 
+        backgroundColor: 'white', 
+        borderTop: '1px solid #e5e7eb',
+        marginTop: '4rem',
+        padding: '2rem'
+      }}>
+        <div style={{ 
+          maxWidth: '1200px', 
+          margin: '0 auto',
+          textAlign: 'center',
+          color: '#6b7280',
+          fontSize: '0.875rem'
+        }}>
+          © 2026 PollGenius - Free Online Poll Maker
         </div>
-        <div>
-          <h3 className="font-semibold mb-3">Resources</h3>
-          <ul className="space-y-2 text-sm text-gray-600">
-            <li><button onClick={() => setCurrentView('blog')} className="hover:text-blue-600">Blog</button></li>
-            <li><button onClick={() => setCurrentView('article-generator')} className="hover:text-blue-600">Article Generator</button></li>
-          </ul>
-        </div>
-        <div>
-          <h3 className="font-semibold mb-3">SEO Keywords</h3>
-          <p className="text-xs text-gray-500">
-            Free poll maker, online surveys, create polls, polling tool, survey creator, 
-            student engagement, classroom polls, quick feedback
-          </p>
-        </div>
-        <div>
-          <h3 className="font-semibold mb-3">PollGenius</h3>
-          <p className="text-sm text-gray-600">
-            Create beautiful polls in seconds with AI-powered features.
-          </p>
-        </div>
-      </div>
-      <div className="mt-8 pt-8 border-t text-center text-sm text-gray-500">
-        © 2026 PollGenius - Free Online Poll Maker
-      </div>
+      </footer>
     </div>
-  </footer>
-</div>
+  );
+}
