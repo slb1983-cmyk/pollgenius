@@ -59,6 +59,7 @@ export default function App() {
   };
 
   const viewPoll = async (pollId) => {
+    // First try storage
     try {
       const result = await window.storage.get(`poll:${pollId}`, true);
       if (result) {
@@ -66,14 +67,22 @@ export default function App() {
         setCurrentPoll(poll);
         setCurrentView('vote');
         setHasVoted(false);
+        return;
       }
     } catch (error) {
-      const poll = polls.find(p => p.id === pollId);
-      if (poll) {
-        setCurrentPoll(poll);
-        setCurrentView('vote');
-        setHasVoted(false);
-      }
+      console.log('Checking local polls');
+    }
+    
+    // Fallback to local state
+    const poll = polls.find(p => p.id === pollId);
+    if (poll) {
+      setCurrentPoll(poll);
+      setCurrentView('vote');
+      setHasVoted(false);
+    } else {
+      // Poll not found
+      alert('Poll not found. It may have been deleted or the link is incorrect.');
+      setCurrentView('home');
     }
   };
 
@@ -116,12 +125,18 @@ export default function App() {
 
   // Check URL for poll ID on load
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const pollId = urlParams.get('poll');
-    if (pollId) {
-      viewPoll(parseInt(pollId));
-    }
-  }, []);
+    const checkUrlForPoll = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const pollId = urlParams.get('poll');
+      if (pollId) {
+        // Wait a moment for storage to load
+        setTimeout(() => {
+          viewPoll(parseInt(pollId));
+        }, 500);
+      }
+    };
+    checkUrlForPoll();
+  }, [polls]);
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
